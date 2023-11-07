@@ -1,23 +1,18 @@
-@main
-class Tripoli {
+typealias Byte = UInt8
 
-    static func main() throws {
-        print( "Tripoli" )
-        let tripoli = Tripoli()
-        tripoli.initDataSpace()
-        tripoli.buildWordList()
-        tripoli.startInterpreter()
-    }
+class Tripoli {
 
     // state
     var interpreting = false
     var mainStack = Stack()
     var wordList : [String:() -> ()] = [:]
-    var here : Int = 0
-    var dataSpace = [Int]()
+    var here : Int = 0 
+    var dataSpace = [Byte]()
 
     // constants
     let separator : Character = " "
+    let cell = UInt8.bitWidth   // This is wrong and stupid
+
     func push( _ value: Int ) { self.mainStack.push( value ) }
     func pop() -> Int { return self.mainStack.pop() }
     func output( _ value: Any ) { 
@@ -39,6 +34,7 @@ class Tripoli {
                 if let number = Int( x ) {
                     mainStack.push( number )
                 } else {
+                    // TODO: this doesn't handle redefines
                     guard let word = wordList[String(x)] else { 
                         self.error( "Undefined word" )
                         continue 
@@ -55,6 +51,15 @@ class Tripoli {
         for x in 0...1024 {
             dataSpace.insert( 0, at: x )
         }
+    }
+
+}
+
+extension Byte {
+
+    // this, but it should do something
+    func hex() -> String {
+        return String( self )
     }
 
 }
@@ -99,28 +104,59 @@ extension Tripoli {
         wordList["create"] = {
 
         }
+        // stores a number in the byte array
+        // make an ex
         wordList[","] = { 
             let tmp = self.pop()
-            self.dataSpace[self.here] = tmp
-            self.here = self.here + 1
+            self.dataSpace[self.here] = 8 // tmp
+            self.here = self.here + self.cell
         }
         wordList["@"] = {
             let tmp = self.pop()
-            let result = self.dataSpace[tmp]
-            self.push( result )
+            let result = self.dataSpace[8]  // [tmp]
+            self.push( 8 ) // result )
         }
     }
 }
 
-class Stack {
+extension Array where Element == Byte {
 
-    var array = [Int]()
+    func doit() { print( "Hello, World!" ) }
 
-    func pop() -> Int {
-        return array.removeFirst()
+    func append( _ integer: Int, at: Int ) {
+
     }
 
-    func push( _ value: Int ) {
-        array.insert( value , at: 0 )
-    }
+}
+
+// what if I had a struct with here and length, and then I could print them out
+// in a dump or create , or whatever. And I don't have to do lookups from stuff
+// in a data array
+// pad would be easy to implement, just store all the strings
+
+// link field -- 2 cells
+    // link field 1st cell -- addr of previous entry
+    // count of chars in string terminated with hex 80
+// name field -- string
+// code name    -- 2 cells
+    // the 
+// parameter field  -- 4 cells, padded with FF
+//
+// ' returns code name field of a word
+// ' "word" >name returns link field of a word
+
+// so I'm thinking of a struct with a protocol for a default method
+// I'm not sure how that would work
+// Either way, creating a word will add it to the array
+// no. that's backwards. No, that will work. The different constructor behavior
+// Let's try to implement and see what happens.
+
+// of course, I could just write it in swift and not worry about the byte
+// implementation. It doesn't serve a design purpose? Does it?
+// ooo, store the original code in a string so the see function always works
+// but then stuff like create , would have little meaning. How would we know?
+// I'm going to need a worklog
+struct Word {
+    // let linkField = (Int, Int)
+
 }
