@@ -7,14 +7,14 @@ class Tripoli {
     var mainStack = Stack()
     var wordList : [String:() -> ()] = [:]
     var here : Int = 0 
-    var dataSpace = [Byte]()
+    var dataSpace = [Int]()
 
     var inputBuffer: String = ""
     var tokens = [String]()
 
     // constants
     let separator : Character = " "
-    let cell = UInt8.bitWidth   // This is wrong and stupid
+    let cell = 1 //UInt8.bitWidth   // This is wrong and stupid
 
     func push( _ value: Int ) { self.mainStack.push( value ) }
     func pop() -> Int { return self.mainStack.pop() }
@@ -27,7 +27,8 @@ class Tripoli {
 
     func interpretString( _ inputString: String ) {
 
-        self.tokens = inputString.split( separator: separator ).map{ String( $0 ) }
+        let newTokens = inputString.split( separator: separator ).map{ String( $0 ) }
+        self.tokens.insert( contentsOf: newTokens, at: 0 )
         while tokens.count > 0 {
             let token = self.parseName()
 
@@ -43,6 +44,12 @@ class Tripoli {
             }
         }
     }
+
+    func compile() -> String {
+        return self.parseName()
+    }
+
+
 
     func startInterpreter() {
         self.interpreting = true
@@ -126,24 +133,40 @@ extension Tripoli {
         // adding a field that has code to push the value of 
         wordList["create"] = {
             let name = self.parseName()
+            let value = self.here
+            self.here = self.here + self.cell
             self.wordList[name] = {
-                self.interpretString( "1" )
+                self.interpretString( String( value)  )
             }
         }
-        // stores a number in the byte array
-        // make an ex
         wordList[","] = { 
             let tmp = self.pop()
-            self.dataSpace[self.here] = 8 // tmp
+            self.dataSpace[self.here] = tmp
             self.here = self.here + self.cell
+        }
+        wordList["!"] = {
+            let address = self.pop()
+            let value = self.pop()
+            self.dataSpace[address] = value
         }
         wordList["@"] = {
             let tmp = self.pop()
-            let result = self.dataSpace[8]  // [tmp]
-            self.push( 8 ) // result )
+            let result = self.dataSpace[tmp]
+            self.push( result )
         }
         wordList[":"] = {
-            self.interpreting = false
+            let name = self.parseName()
+            self.here = self.here + self.cell
+            var compiledString = ""
+            while true {
+                var token = self.compile()
+                if token == ";" { break }
+                compiledString.append( token )
+                compiledString.append( " " )
+            }
+            self.wordList[name] = {
+                self.interpretString( compiledString )
+            }
         }
         wordList[";"] = {
             self.interpreting = true
@@ -188,7 +211,10 @@ extension Array where Element == Byte {
 // ooo, store the original code in a string so the see function always works
 // but then stuff like create , would have little meaning. How would we know?
 // I'm going to need a worklog
-struct Word {
-    // let linkField = (Int, Int)
 
+// Uh... this is just how I'm doing it for now
+struct Word {
+    let interpretation : () -> ()
+    let compilation : () -> ()
+    let runtime : () -> ()
 }
