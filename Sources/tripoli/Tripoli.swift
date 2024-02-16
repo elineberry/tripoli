@@ -5,7 +5,7 @@ class Tripoli {
     // state
     var interpreting = false
     var mainStack = Stack()
-    var wordList : [String:() -> ()] = [:]
+    var wordList : [String:Word] = [:]
     var here : Int = 0 
     var dataSpace = [Int]()
 
@@ -40,7 +40,7 @@ class Tripoli {
                     self.error( "Undefined word \(token)" )
                     continue 
                 }
-                word()
+                word.int()
             }
         }
     }
@@ -90,87 +90,89 @@ extension Byte {
 extension Tripoli {
 
     func buildWordList() {
-        wordList["."] = { self.output( self.pop() ) }
-        wordList["+"] = { 
+        wordList["."] = Word({ self.output( self.pop() ) })
+        wordList["."] = Word( { self.output( self.pop()) } )
+        wordList["+"] = Word({ 
             let result = self.pop() + self.pop()
             self.push( result ) 
-        }
-        wordList["bye"] = { self.interpreting = false }
-        wordList["drop"] = { _ = self.pop() }
-        wordList["swap"] = { 
+        })
+        wordList["bye"] = Word({ self.interpreting = false })
+        wordList["drop"] = Word({ _ = self.pop() })
+        wordList["swap"] = Word({ 
             let tmp = self.pop()
             let tmp2 = self.pop()
             self.push( tmp )
             self.push( tmp2 )
-        }
-        wordList["over"] = {
+        })
+        wordList["over"] = Word({
             let tmp = self.pop()
             let tmp2 = self.pop()
             self.push( tmp2 )
             self.push( tmp )
             self.push( tmp2 )
-        }
-        wordList["dup"] = {
+        })
+        wordList["dup"] = Word({
             let tmp = self.pop()
             self.push( tmp )
             self.push( tmp )
-        }
-        wordList["2dup"] = {
+        })
+        wordList["2dup"] = Word({
             self.interpretString( "over over")
-        }
-        wordList[".s"] = {
+        })
+        wordList[".s"] = Word({
             self.output( "<\(self.mainStack.array.count)>")
             _ = self.mainStack.array.reversed().map {
                 self.output( $0 )
             }
-        }
-        wordList["depth"] = { self.push( self.mainStack.array.count ) }
-        wordList["here"] = { self.push( Int( self.here ) ) }
+        })
+        wordList["depth"] = Word({ self.push( self.mainStack.array.count ) })
+        wordList["here"] = Word({ self.push( Int( self.here ) ) })
 
         // I don't really know what I'm doing
         // but I think this is going to be something like storing
         // the name in the data-space
         // adding a field that has code to push the value of 
-        wordList["create"] = {
+        wordList["create"] = Word({
             let name = self.parseName()
             let value = self.here
             self.here = self.here + self.cell
-            self.wordList[name] = {
+            self.wordList[name] = Word({
                 self.interpretString( String( value)  )
-            }
-        }
-        wordList[","] = { 
+            })
+        })
+        wordList[","] = Word({ 
             let tmp = self.pop()
             self.dataSpace[self.here] = tmp
             self.here = self.here + self.cell
-        }
-        wordList["!"] = {
+        })
+        wordList["!"] = Word({
             let address = self.pop()
             let value = self.pop()
             self.dataSpace[address] = value
-        }
-        wordList["@"] = {
+        })
+        wordList["@"] = Word({
             let tmp = self.pop()
             let result = self.dataSpace[tmp]
             self.push( result )
-        }
-        wordList[":"] = {
+        })
+        wordList[":"] = Word( {
             let name = self.parseName()
             self.here = self.here + self.cell
             var compiledString = ""
             while true {
-                var token = self.compile()
+                let token = self.compile()
                 if token == ";" { break }
                 compiledString.append( token )
                 compiledString.append( " " )
             }
-            self.wordList[name] = {
+            self.wordList[name] = Word( {
                 self.interpretString( compiledString )
-            }
-        }
-        wordList[";"] = {
+            })
+        })
+        wordList[";"] = Word( {
             self.interpreting = true
-        }
+        })
+
     }
 }
 
@@ -182,39 +184,4 @@ extension Array where Element == Byte {
 
     }
 
-}
-
-// what if I had a struct with here and length, and then I could print them out
-// in a dump or create , or whatever. And I don't have to do lookups from stuff
-// in a data array
-// pad would be easy to implement, just store all the strings
-
-// link field -- 2 cells
-    // link field 1st cell -- addr of previous entry
-    // count of chars in string terminated with hex 80
-// name field -- string
-// code name    -- 2 cells
-    // the 
-// parameter field  -- 4 cells, padded with FF
-//
-// ' returns code name field of a word
-// ' "word" >name returns link field of a word
-
-// so I'm thinking of a struct with a protocol for a default method
-// I'm not sure how that would work
-// Either way, creating a word will add it to the array
-// no. that's backwards. No, that will work. The different constructor behavior
-// Let's try to implement and see what happens.
-
-// of course, I could just write it in swift and not worry about the byte
-// implementation. It doesn't serve a design purpose? Does it?
-// ooo, store the original code in a string so the see function always works
-// but then stuff like create , would have little meaning. How would we know?
-// I'm going to need a worklog
-
-// Uh... this is just how I'm doing it for now
-struct Word {
-    let interpretation : () -> ()
-    let compilation : () -> ()
-    let runtime : () -> ()
 }
