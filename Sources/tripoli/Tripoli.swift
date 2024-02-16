@@ -9,6 +9,9 @@ class Tripoli {
     var here : Int = 0 
     var dataSpace = [Byte]()
 
+    var inputBuffer: String = ""
+    var tokens = [String]()
+
     // constants
     let separator : Character = " "
     let cell = UInt8.bitWidth   // This is wrong and stupid
@@ -22,27 +25,32 @@ class Tripoli {
         print( msg )
     }
 
+    func interpretString( _ inputString: String ) {
+
+        self.tokens = inputString.split( separator: separator ).map{ String( $0 ) }
+        while tokens.count > 0 {
+            let token = self.parseName()
+
+            if let number = Int( token ) {
+                mainStack.push( number )
+            } else {
+                // TODO: this doesn't handle redefines
+                guard let word = wordList[String(token)] else { 
+                    self.error( "Undefined word \(token)" )
+                    continue 
+                }
+                word()
+            }
+        }
+    }
+
     func startInterpreter() {
         self.interpreting = true
         print( "Interpreting..." )
         while self.interpreting {
             let input = readLine()
             guard let inputString = input else { return }
-
-            let tokens = inputString.split( separator: separator )
-            for x in tokens {
-                if let number = Int( x ) {
-                    mainStack.push( number )
-                } else {
-                    // TODO: this doesn't handle redefines
-                    guard let word = wordList[String(x)] else { 
-                        self.error( "Undefined word" )
-                        continue 
-                    }
-                    word()
-                }
-
-            }
+            self.interpretString( inputString )
             print("ok" )
         }
     }
@@ -51,6 +59,13 @@ class Tripoli {
         for x in 0...1024 {
             dataSpace.insert( 0, at: x )
         }
+    }
+
+    func parseName() -> String {
+        let name = self.tokens.removeFirst()
+        guard !name.isEmpty else { self.error( "Zero length name"); fatalError() }
+        return name
+
     }
 
 }
@@ -88,6 +103,14 @@ extension Tripoli {
             self.push( tmp )
             self.push( tmp2 )
         }
+        wordList["dup"] = {
+            let tmp = self.pop()
+            self.push( tmp )
+            self.push( tmp )
+        }
+        wordList["2dup"] = {
+            self.interpretString( "over over")
+        }
         wordList[".s"] = {
             self.output( "<\(self.mainStack.array.count)>")
             _ = self.mainStack.array.reversed().map {
@@ -102,7 +125,10 @@ extension Tripoli {
         // the name in the data-space
         // adding a field that has code to push the value of 
         wordList["create"] = {
-
+            let name = self.parseName()
+            self.wordList[name] = {
+                self.interpretString( "1" )
+            }
         }
         // stores a number in the byte array
         // make an ex
@@ -115,6 +141,12 @@ extension Tripoli {
             let tmp = self.pop()
             let result = self.dataSpace[8]  // [tmp]
             self.push( 8 ) // result )
+        }
+        wordList[":"] = {
+            self.interpreting = false
+        }
+        wordList[";"] = {
+            self.interpreting = true
         }
     }
 }
